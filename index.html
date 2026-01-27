@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a0f">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="SmartSpesa - Lista della spesa intelligente con scanner barcode">
+    
+    <title>SmartSpesa</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/icon-16.png">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-glass: rgba(255, 255, 255, 0.06);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.6);
+            --text-muted: rgba(255, 255, 255, 0.4);
+            --accent-primary: #22c55e;
+            --accent-secondary: #4ade80;
+            --accent-glow: rgba(34, 197, 94, 0.3);
+            --danger: #ef4444;
+            --danger-glow: rgba(239, 68, 68, 0.3);
+            --warning: #f59e0b;
+            --radius-sm: 12px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
+            --shadow-glow: 0 0 40px var(--accent-glow);
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        /* Light Mode */
+        [data-theme="light"] {
+            --bg-primary: #f5f5f7;
+            --bg-secondary: #ffffff;
+            --bg-card: rgba(0, 0, 0, 0.02);
+            --bg-glass: rgba(0, 0, 0, 0.04);
+            --border-glass: rgba(0, 0, 0, 0.08);
+            --text-primary: #1a1a1a;
+            --text-secondary: rgba(0, 0, 0, 0.6);
+            --text-muted: rgba(0, 0, 0, 0.4);
+            --accent-glow: rgba(34, 197, 94, 0.2);
+            --danger-glow: rgba(239, 68, 68, 0.2);
+            --shadow-glow: 0 0 40px var(--accent-glow);
+        }
+
+        [data-theme="light"] .bg-gradient {
+            background: radial-gradient(circle at 30% 20%, rgba(34, 197, 94, 0.12) 0%, transparent 40%),
+                        radial-gradient(circle at 70% 80%, rgba(74, 222, 128, 0.08) 0%, transparent 40%);
+        }
+
+        [data-theme="light"] .noise-overlay { opacity: 0.03; }
+        
+        [data-theme="light"] .product-found-image,
+        [data-theme="light"] .product-detail-image { background: #f0f0f0; }
+        
+        [data-theme="light"] .nutri-score.c { color: #1a1a1a; }
+        [data-theme="light"] .nova-badge.nova-3 { color: #1a1a1a; }
+
+        /* Theme Toggle */
+        .theme-toggle { cursor: pointer; }
+        .theme-toggle-track { width: 50px; height: 28px; background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: 14px; position: relative; transition: all 0.3s ease; }
+        .theme-toggle-thumb { width: 22px; height: 22px; background: var(--text-muted); border-radius: 50%; position: absolute; top: 2px; left: 3px; transition: all 0.3s ease; }
+        .theme-toggle.active .theme-toggle-track { background: var(--accent-primary); border-color: var(--accent-primary); }
+        .theme-toggle.active .theme-toggle-thumb { left: 24px; background: white; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; overflow: hidden; }
+        body { font-family: 'Outfit', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.5; overscroll-behavior: none; }
+
+        .app { height: 100%; display: flex; flex-direction: column; padding-top: var(--safe-area-top); padding-bottom: var(--safe-area-bottom); position: relative; overflow: hidden; }
+
+        .bg-gradient { position: fixed; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle at 30% 20%, rgba(34, 197, 94, 0.08) 0%, transparent 40%), radial-gradient(circle at 70% 80%, rgba(74, 222, 128, 0.05) 0%, transparent 40%); pointer-events: none; z-index: 0; }
+        
+        .noise-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.015; pointer-events: none; z-index: 1; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E"); }
+
+        .header { position: relative; z-index: 10; padding: 20px 20px 16px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 12px; }
+        .logo-icon { width: 44px; height: 44px; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: var(--shadow-glow); }
+        .logo-text { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+        .logo-text span { color: var(--accent-primary); }
+        .header-actions { display: flex; gap: 8px; }
+        .header-btn { width: 44px; height: 44px; border: none; background: var(--bg-glass); backdrop-filter: blur(20px); border-radius: var(--radius-sm); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; border: 1px solid var(--border-glass); }
+        .header-btn:active { transform: scale(0.95); background: var(--bg-card); }
+        .header-btn svg { width: 22px; height: 22px; }
+
+        .stats-bar { position: relative; z-index: 10; padding: 0 20px 16px; display: flex; gap: 12px; }
+        .stat-card { flex: 1; background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 16px; display: flex; align-items: center; gap: 12px; }
+        .stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .stat-icon.items { background: rgba(34, 197, 94, 0.15); }
+        .stat-icon.checked { background: rgba(96, 165, 250, 0.15); }
+        .stat-content { display: flex; flex-direction: column; }
+        .stat-value { font-family: 'Space Mono', monospace; font-size: 20px; font-weight: 700; line-height: 1.1; }
+        .stat-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .main-content { flex: 1; overflow-y: auto; overflow-x: hidden; position: relative; z-index: 10; padding: 0 20px; -webkit-overflow-scrolling: touch; }
+
+        .category-group { margin-bottom: 24px; }
+        .category-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 0 4px; }
+        .category-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent-primary); }
+        .category-name { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); }
+        .category-count { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); margin-left: auto; }
+
+        .product-list { display: flex; flex-direction: column; gap: 10px; }
+        .product-item { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 16px; display: flex; align-items: center; gap: 14px; position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); transform: translateX(0); }
+        .product-item.checked { opacity: 0.5; }
+        .product-item.checked .product-name { text-decoration: line-through; color: var(--text-muted); }
+        .product-item.swiping { transition: none; }
+        .product-item.removing { transform: translateX(-100%); opacity: 0; }
+
+        .product-checkbox { width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--border-glass); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; }
+        .product-checkbox.checked { background: var(--accent-primary); border-color: var(--accent-primary); }
+        .product-checkbox svg { width: 16px; height: 16px; color: white; opacity: 0; transform: scale(0.5); transition: all 0.2s ease; }
+        .product-checkbox.checked svg { opacity: 1; transform: scale(1); }
+
+        .product-image { width: 50px; height: 50px; border-radius: 10px; background: var(--bg-card); display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; overflow: hidden; }
+        .product-image img { width: 100%; height: 100%; object-fit: cover; }
+
+        .product-info { flex: 1; min-width: 0; }
+        .product-name { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .product-brand { font-size: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .product-quantity { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+        .qty-btn { width: 32px; height: 32px; border: none; background: var(--bg-card); border-radius: 8px; color: var(--text-primary); font-size: 18px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s ease; }
+        .qty-btn:active { transform: scale(0.9); background: var(--accent-primary); }
+        .qty-value { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 600; min-width: 24px; text-align: center; }
+
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
+        .empty-icon { width: 100px; height: 100px; background: var(--bg-glass); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; margin-bottom: 24px; border: 1px solid var(--border-glass); }
+        .empty-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .empty-text { color: var(--text-secondary); font-size: 15px; max-width: 260px; }
+
+        .bottom-actions { position: relative; z-index: 10; padding: 16px 20px; padding-bottom: calc(16px + var(--safe-area-bottom)); display: flex; gap: 12px; }
+        .btn-scan { flex: 1; height: 56px; border: none; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); border-radius: var(--radius-md); color: var(--bg-primary); font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: all 0.2s ease; box-shadow: var(--shadow-glow); }
+        .btn-scan:active { transform: scale(0.98); }
+        .btn-scan svg { width: 24px; height: 24px; }
+        .btn-add { width: 56px; height: 56px; border: none; background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
+        .btn-add:active { transform: scale(0.95); background: var(--bg-card); }
+        .btn-add svg { width: 24px; height: 24px; }
+
+        .sheet-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .sheet-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .bottom-sheet { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg-secondary); border-radius: var(--radius-xl) var(--radius-xl) 0 0; z-index: 101; transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); max-height: 90vh; display: flex; flex-direction: column; }
+        .bottom-sheet.active { transform: translateY(0); }
+        .sheet-handle { width: 40px; height: 4px; background: var(--border-glass); border-radius: 2px; margin: 12px auto; flex-shrink: 0; }
+        .sheet-header { padding: 8px 24px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-glass); flex-shrink: 0; }
+        .sheet-title { font-size: 20px; font-weight: 600; }
+        .sheet-close { width: 36px; height: 36px; border: none; background: var(--bg-glass); border-radius: 10px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .sheet-content { padding: 24px; overflow-y: auto; flex: 1; padding-bottom: calc(24px + var(--safe-area-bottom)); }
+
+        .scanner-container { width: 100%; aspect-ratio: 1; background: var(--bg-card); border-radius: var(--radius-lg); overflow: hidden; position: relative; margin-bottom: 20px; }
+        #scanner-reader { width: 100%; height: 100%; }
+        #scanner-reader video { object-fit: cover !important; border-radius: var(--radius-lg); }
+        .scanner-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+        .scanner-frame { width: 70%; height: 30%; border: 3px solid var(--accent-primary); border-radius: 16px; position: relative; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        .scanner-line { position: absolute; top: 0; left: 10%; right: 10%; height: 2px; background: var(--accent-primary); box-shadow: 0 0 10px var(--accent-primary); animation: scanLine 2s ease-in-out infinite; }
+        @keyframes scanLine { 0%, 100% { top: 10%; } 50% { top: 90%; } }
+        .scanner-hint { text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 20px; }
+        .scanner-actions { display: flex; gap: 12px; }
+        .scanner-actions button { flex: 1; height: 50px; border: none; border-radius: var(--radius-md); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; background: var(--bg-glass); color: var(--text-primary); border: 1px solid var(--border-glass); }
+
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .form-input { width: 100%; height: 52px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 0 16px; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 16px; transition: all 0.2s ease; }
+        .form-input:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .form-input::placeholder { color: var(--text-muted); }
+        .form-row { display: flex; gap: 12px; }
+        .form-row .form-group { flex: 1; }
+
+        .input-with-btn { display: flex; gap: 8px; }
+        .input-with-btn .form-input { flex: 1; }
+        .input-with-btn .btn-icon { width: 52px; height: 52px; border: none; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); color: var(--text-primary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; flex-shrink: 0; }
+        .input-with-btn .btn-icon:active { background: var(--accent-primary); border-color: var(--accent-primary); }
+        .input-with-btn .btn-icon svg { width: 22px; height: 22px; }
+
+        .category-selector { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .category-option { aspect-ratio: 1; background: var(--bg-glass); border: 2px solid var(--border-glass); border-radius: var(--radius-md); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all 0.2s ease; position: relative; }
+        .category-option.selected { border-color: var(--accent-primary); background: rgba(34, 197, 94, 0.1); }
+        .category-option .cat-emoji { font-size: 24px; }
+        .category-option .cat-name { font-size: 9px; color: var(--text-muted); text-transform: uppercase; text-align: center; line-height: 1.2; padding: 0 4px; }
+
+        .btn-submit { width: 100%; height: 56px; border: none; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); border-radius: var(--radius-md); color: var(--bg-primary); font-family: 'Outfit', sans-serif; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; margin-top: 24px; }
+        .btn-submit:active { transform: scale(0.98); }
+        .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .settings-list { display: flex; flex-direction: column; gap: 8px; }
+        .settings-item { display: flex; align-items: center; gap: 16px; padding: 16px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s ease; }
+        .settings-item:active { transform: scale(0.98); background: var(--bg-card); }
+        .settings-icon { width: 44px; height: 44px; background: var(--bg-card); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .settings-info { flex: 1; }
+        .settings-name { font-size: 16px; font-weight: 500; margin-bottom: 2px; }
+        .settings-desc { font-size: 13px; color: var(--text-muted); }
+        .settings-item svg { color: var(--text-muted); width: 20px; height: 20px; flex-shrink: 0; }
+        .settings-danger { border-color: var(--danger-glow); }
+        .settings-danger .settings-icon { background: rgba(239, 68, 68, 0.15); }
+
+        .product-found { background: var(--bg-glass); border: 1px solid var(--accent-primary); border-radius: var(--radius-lg); padding: 20px; margin-bottom: 20px; }
+        .product-found-header { display: flex; gap: 16px; }
+        .product-found-image { width: 80px; height: 80px; background: white; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .product-found-image img { width: 100%; height: 100%; object-fit: contain; }
+        .product-found-image span { font-size: 40px; }
+        .product-found-info { flex: 1; min-width: 0; }
+        .product-found-name { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+        .product-found-brand { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+        .product-found-barcode { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+        .file-input-wrapper { position: relative; }
+        .file-input { position: absolute; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+        .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px 24px; color: var(--text-primary); font-size: 14px; font-weight: 500; z-index: 200; opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3); max-width: calc(100% - 40px); text-align: center; }
+        .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--accent-primary); }
+        .toast.error { border-color: var(--danger); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(8px); z-index: 150; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal { background: var(--bg-secondary); border: 1px solid var(--border-glass); border-radius: var(--radius-lg); width: 100%; max-width: 340px; transform: scale(0.9); transition: transform 0.3s ease; }
+        .modal-overlay.active .modal { transform: scale(1); }
+        .modal-header { padding: 24px 24px 0; text-align: center; }
+        .modal-icon { width: 56px; height: 56px; background: var(--bg-glass); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 16px; }
+        .modal-icon.danger { background: rgba(239, 68, 68, 0.15); }
+        .modal-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+        .modal-message { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+        .modal-body { padding: 20px 24px; }
+        .modal-input { width: 100%; height: 52px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 0 16px; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 16px; text-align: center; }
+        .modal-input:focus { outline: none; border-color: var(--accent-primary); }
+        .modal-footer { padding: 0 24px 24px; display: flex; gap: 12px; }
+        .modal-btn { flex: 1; height: 48px; border: none; border-radius: var(--radius-md); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; }
+        .modal-btn:active { transform: scale(0.98); }
+        .modal-btn.secondary { background: var(--bg-glass); color: var(--text-primary); border: 1px solid var(--border-glass); }
+        .modal-btn.primary { background: var(--accent-primary); color: var(--bg-primary); }
+        .modal-btn.danger { background: var(--danger); color: white; }
+
+        .emoji-picker { background: var(--bg-card); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 12px; margin-top: 12px; }
+        .emoji-picker-title { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+        .emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+        .emoji-btn { aspect-ratio: 1; background: transparent; border: 2px solid transparent; border-radius: 8px; font-size: 22px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; }
+        .emoji-btn:active { transform: scale(0.9); }
+        .emoji-btn.selected { background: rgba(34, 197, 94, 0.2); border-color: var(--accent-primary); }
+
+        .history-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-glass); }
+        .history-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; }
+        .history-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .history-chip { background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 20px; padding: 8px 16px; font-size: 14px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
+        .history-chip:active { transform: scale(0.95); background: var(--bg-card); }
+        .history-chip span { font-size: 16px; }
+
+        .privacy-badge { display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: var(--radius-md); margin-bottom: 20px; }
+        .privacy-badge svg { width: 20px; height: 20px; color: var(--accent-primary); flex-shrink: 0; }
+        .privacy-badge span { font-size: 13px; color: var(--text-secondary); }
+
+        .category-manage-list { display: flex; flex-direction: column; gap: 8px; }
+        .category-manage-item { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); }
+        .category-manage-item .cat-emoji { font-size: 24px; }
+        .category-manage-item .cat-info { flex: 1; }
+        .category-manage-item .cat-name { font-size: 15px; font-weight: 500; }
+        .category-manage-item .cat-id { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+        .category-manage-item .cat-actions { display: flex; gap: 8px; }
+        .category-manage-item .cat-btn { width: 36px; height: 36px; border: none; background: var(--bg-card); border-radius: 8px; color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
+        .category-manage-item .cat-btn:active { transform: scale(0.9); }
+        .category-manage-item .cat-btn.delete:active { background: var(--danger); color: white; }
+        .category-manage-item .cat-btn svg { width: 18px; height: 18px; }
+        .category-manage-item.default .cat-actions { display: none; }
+
+        .btn-add-category { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px; background: transparent; border: 2px dashed var(--border-glass); border-radius: var(--radius-md); color: var(--text-secondary); font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; margin-top: 12px; width: 100%; }
+        .btn-add-category:active { border-color: var(--accent-primary); color: var(--accent-primary); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease forwards; }
+        .hidden { display: none !important; }
+
+        /* Shop Filter */
+        .shop-filter-container { padding: 0 20px 12px; position: relative; z-index: 10; }
+        .shop-filter-chips { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .shop-filter-chips::-webkit-scrollbar { display: none; }
+        .shop-chip { background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 20px; padding: 8px 16px; font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease; white-space: nowrap; flex-shrink: 0; }
+        .shop-chip.active { background: var(--accent-primary); border-color: var(--accent-primary); color: var(--bg-primary); }
+        .shop-chip:active { transform: scale(0.95); }
+
+        /* Shop Selector in Form */
+        .shop-selector { display: flex; flex-wrap: wrap; gap: 8px; }
+        .shop-option { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: var(--bg-glass); border: 2px solid var(--border-glass); border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s ease; }
+        .shop-option.selected { border-color: var(--accent-primary); background: rgba(34, 197, 94, 0.1); }
+        .shop-option input { display: none; }
+        .shop-option .shop-emoji { font-size: 18px; }
+        .shop-option .shop-name { font-size: 14px; font-weight: 500; }
+        .no-shops-hint { font-size: 13px; color: var(--text-muted); }
+        .no-shops-hint a { color: var(--accent-primary); text-decoration: none; }
+
+        /* Product Detail Styles */
+        .product-detail-header { display: flex; gap: 16px; margin-bottom: 24px; }
+        .product-detail-image { width: 100px; height: 100px; background: white; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
+        .product-detail-image img { width: 100%; height: 100%; object-fit: contain; }
+        .product-detail-image .emoji { font-size: 48px; }
+        .product-detail-info { flex: 1; min-width: 0; }
+        .product-detail-name { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+        .product-detail-brand { font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; }
+        .product-detail-barcode { font-family: 'Space Mono', monospace; font-size: 12px; color: var(--text-muted); }
+
+        .detail-section { margin-bottom: 24px; }
+        .detail-section-title { font-size: 14px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .detail-section-title span { font-size: 18px; }
+
+        .nutri-score-container { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+        .nutri-score { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; color: white; text-transform: uppercase; }
+        .nutri-score.a { background: #038141; }
+        .nutri-score.b { background: #85bb2f; }
+        .nutri-score.c { background: #fecb02; color: #333; }
+        .nutri-score.d { background: #ee8100; }
+        .nutri-score.e { background: #e63e11; }
+        .nutri-score.unknown { background: var(--bg-glass); color: var(--text-muted); font-size: 14px; }
+        .nutri-score-label { font-size: 13px; color: var(--text-secondary); }
+        .nutri-score-label strong { display: block; font-size: 16px; color: var(--text-primary); }
+
+        .nutrition-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .nutrition-item { background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); padding: 14px; }
+        .nutrition-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .nutrition-value { font-family: 'Space Mono', monospace; font-size: 18px; font-weight: 600; }
+        .nutrition-unit { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+        .allergen-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .allergen-tag { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+        .diet-tag { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); color: var(--accent-primary); padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+        .diet-tag.warning { background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3); color: #fbbf24; }
+        .diet-tag.negative { background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: #f87171; }
+
+        .nova-group { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); }
+        .nova-badge { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: white; }
+        .nova-badge.nova-1 { background: #038141; }
+        .nova-badge.nova-2 { background: #85bb2f; }
+        .nova-badge.nova-3 { background: #fecb02; color: #333; }
+        .nova-badge.nova-4 { background: #e63e11; }
+        .nova-info { flex: 1; }
+        .nova-title { font-size: 14px; font-weight: 500; }
+        .nova-desc { font-size: 12px; color: var(--text-muted); }
+
+        .package-info { display: flex; flex-direction: column; gap: 12px; }
+        .package-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: var(--radius-md); }
+        .package-label { font-size: 14px; color: var(--text-secondary); }
+        .package-value { font-family: 'Space Mono', monospace; font-size: 16px; font-weight: 600; }
+
+        .no-data-message { color: var(--text-muted); font-size: 14px; font-style: italic; padding: 16px; background: var(--bg-glass); border-radius: var(--radius-md); text-align: center; }
+
+        .detail-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; }
+        .detail-loading .loading-spinner { width: 40px; height: 40px; border-width: 4px; margin-bottom: 16px; }
+        .detail-loading p { color: var(--text-secondary); }
+
+        /* Shop Badges on Products */
+        .product-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .product-shops { display: flex; gap: 2px; }
+        .shop-badge { font-size: 12px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="bg-gradient"></div>
+        <div class="noise-overlay"></div>
+
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🛒</div>
+                <h1 class="logo-text">Smart<span>Spesa</span></h1>
+            </div>
+            <div class="header-actions">
+                <button class="header-btn" id="btnHistory" title="Storico">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
+                </button>
+                <button class="header-btn" id="btnSettings" title="Impostazioni">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-icon items">📦</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="totalItems">0</div>
+                    <div class="stat-label">Prodotti</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon checked">✓</div>
+                <div class="stat-content">
+                    <div class="stat-value" id="checkedItems">0</div>
+                    <div class="stat-label">Presi</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Shop Filter -->
+        <div class="shop-filter-container hidden" id="shopFilterContainer"></div>
+
+        <main class="main-content" id="mainContent"></main>
+
+        <div class="bottom-actions">
+            <button class="btn-scan" id="btnScan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="8" x2="13" y2="8"/><line x1="7" y1="16" x2="15" y2="16"/></svg>
+                Scansiona
+            </button>
+            <button class="btn-add" id="btnAdd" title="Aggiungi manualmente">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <div class="sheet-overlay" id="sheetOverlay"></div>
+
+    <!-- Scanner Sheet -->
+    <div class="bottom-sheet" id="scannerSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Scansiona Barcode</h2>
+            <button class="sheet-close" id="closeScannerSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <div class="scanner-container">
+                <div id="scanner-reader"></div>
+                <div class="scanner-overlay"><div class="scanner-frame"><div class="scanner-line"></div></div></div>
+            </div>
+            <p class="scanner-hint">Inquadra il codice a barre del prodotto</p>
+            <div class="scanner-actions">
+                <button id="btnManualBarcode">Inserisci codice</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Product Sheet -->
+    <div class="bottom-sheet" id="addSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title" id="addSheetTitle">Aggiungi Prodotto</h2>
+            <button class="sheet-close" id="closeAddSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <div id="productFoundContainer" class="hidden"></div>
+            <form id="addProductForm">
+                <div class="form-group">
+                    <label class="form-label">Nome Prodotto *</label>
+                    <input type="text" class="form-input" id="productName" placeholder="es. Latte Intero" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Marca</label>
+                        <input type="text" class="form-input" id="productBrand" placeholder="es. Granarolo">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Barcode</label>
+                        <div class="input-with-btn">
+                            <input type="text" class="form-input" id="productBarcode" placeholder="Codice">
+                            <button type="button" class="btn-icon" id="btnScanInForm" title="Scansiona">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Categoria</label>
+                    <div class="category-selector" id="categorySelector"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Supermercati</label>
+                    <div class="shop-selector" id="shopSelector"></div>
+                </div>
+                <input type="hidden" id="productImage">
+                <button type="submit" class="btn-submit">Aggiungi alla Lista</button>
+            </form>
+            <div class="history-section" id="historySection">
+                <h3 class="history-title">Aggiunti di recente</h3>
+                <div class="history-list" id="historyList"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Sheet -->
+    <div class="bottom-sheet" id="settingsSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Impostazioni</h2>
+            <button class="sheet-close" id="closeSettingsSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <div class="privacy-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                <span>I tuoi dati sono salvati solo sul tuo dispositivo</span>
+            </div>
+            <div class="settings-list">
+                <div class="settings-item" id="btnToggleTheme">
+                    <div class="settings-icon" id="themeIcon">🌙</div>
+                    <div class="settings-info"><div class="settings-name" id="themeName">Tema Scuro</div><div class="settings-desc" id="themeDesc">Passa alla modalità chiara</div></div>
+                    <div class="theme-toggle" id="themeToggle">
+                        <div class="theme-toggle-track">
+                            <div class="theme-toggle-thumb"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item" id="btnManageShops">
+                    <div class="settings-icon">🏪</div>
+                    <div class="settings-info"><div class="settings-name">Gestisci Supermercati</div><div class="settings-desc">Aggiungi i tuoi supermercati</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+                <div class="settings-item" id="btnManageCategories">
+                    <div class="settings-icon">🏷️</div>
+                    <div class="settings-info"><div class="settings-name">Gestisci Categorie</div><div class="settings-desc">Aggiungi, modifica o elimina</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+                <div class="settings-item" id="btnExport">
+                    <div class="settings-icon">📤</div>
+                    <div class="settings-info"><div class="settings-name">Esporta Dati</div><div class="settings-desc">Scarica lista e storico in JSON</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+                <div class="settings-item file-input-wrapper">
+                    <input type="file" class="file-input" id="importFile" accept=".json">
+                    <div class="settings-icon">📥</div>
+                    <div class="settings-info"><div class="settings-name">Importa Dati</div><div class="settings-desc">Carica un file JSON</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+                <div class="settings-item" id="btnClearChecked">
+                    <div class="settings-icon">✨</div>
+                    <div class="settings-info"><div class="settings-name">Rimuovi Completati</div><div class="settings-desc">Elimina prodotti spuntati</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+                <div class="settings-item settings-danger" id="btnClearAll">
+                    <div class="settings-icon">🗑️</div>
+                    <div class="settings-info"><div class="settings-name">Svuota Lista</div><div class="settings-desc">Elimina tutti i prodotti</div></div>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Sheet -->
+    <div class="bottom-sheet" id="historySheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Storico Prodotti</h2>
+            <button class="sheet-close" id="closeHistorySheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <p class="scanner-hint" style="margin-bottom: 16px;">Tocca un prodotto per aggiungerlo alla lista</p>
+            <div id="fullHistoryList"></div>
+        </div>
+    </div>
+
+    <!-- Categories Sheet -->
+    <div class="bottom-sheet" id="categoriesSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Gestisci Categorie</h2>
+            <button class="sheet-close" id="closeCategoriesSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <div class="category-manage-list" id="categoryManageList"></div>
+            <button class="btn-add-category" id="btnAddCategory">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nuova Categoria
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Category Sheet -->
+    <div class="bottom-sheet" id="editCategorySheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title" id="editCategoryTitle">Nuova Categoria</h2>
+            <button class="sheet-close" id="closeEditCategorySheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <form id="categoryForm">
+                <div class="form-group">
+                    <label class="form-label">Nome Categoria *</label>
+                    <input type="text" class="form-input" id="categoryNameInput" placeholder="es. Prodotti Bio" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Icona</label>
+                    <div class="emoji-picker">
+                        <div class="emoji-picker-title">Scegli un'emoji</div>
+                        <div class="emoji-grid" id="emojiGrid"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="categoryId">
+                <input type="hidden" id="categoryEmoji" value="📦">
+                <button type="submit" class="btn-submit">Salva Categoria</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Shops Management Sheet -->
+    <div class="bottom-sheet" id="shopsSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Gestisci Supermercati</h2>
+            <button class="sheet-close" id="closeShopsSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <div class="category-manage-list" id="shopManageList"></div>
+            <button class="btn-add-category" id="btnAddShop">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Nuovo Supermercato
+            </button>
+        </div>
+    </div>
+
+    <!-- Edit Shop Sheet -->
+    <div class="bottom-sheet" id="editShopSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title" id="editShopTitle">Nuovo Supermercato</h2>
+            <button class="sheet-close" id="closeEditShopSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content">
+            <form id="shopForm">
+                <div class="form-group">
+                    <label class="form-label">Nome Supermercato *</label>
+                    <input type="text" class="form-input" id="shopNameInput" placeholder="es. Esselunga" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Icona</label>
+                    <div class="emoji-picker">
+                        <div class="emoji-picker-title">Scegli un'emoji</div>
+                        <div class="emoji-grid" id="shopEmojiGrid"></div>
+                    </div>
+                </div>
+                <input type="hidden" id="shopId">
+                <input type="hidden" id="shopEmoji" value="🛒">
+                <button type="submit" class="btn-submit">Salva Supermercato</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Product Detail Sheet -->
+    <div class="bottom-sheet" id="productDetailSheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <h2 class="sheet-title">Dettaglio Prodotto</h2>
+            <button class="sheet-close" id="closeProductDetailSheet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+        </div>
+        <div class="sheet-content" id="productDetailContent">
+            <!-- Product details will be rendered here -->
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-icon" id="modalIcon">❓</div>
+                <h3 class="modal-title" id="modalTitle">Titolo</h3>
+                <p class="modal-message" id="modalMessage">Messaggio</p>
+            </div>
+            <div class="modal-body hidden" id="modalBody">
+                <input type="text" class="modal-input" id="modalInput" placeholder="">
+            </div>
+            <div class="modal-footer" id="modalFooter"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
