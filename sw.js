@@ -1,91 +1,56 @@
-const CACHE_NAME = 'smartspesa-v2';
+const CACHE_NAME = 'spesasmart-v1';
 const ASSETS = [
-    '/',
-    '/index.html',
-    '/app.js',
-    '/manifest.json',
-    'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap',
-    'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+    './',
+    './index.html',
+    './styles.css',
+    './app.js',
+    './manifest.json',
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'
 ];
 
-// Install event - cache assets
-self.addEventListener('install', (event) => {
-    event.waitUntil(
+// Install
+self.addEventListener('install', e => {
+    e.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                return cache.addAll(ASSETS);
-            })
-            .then(() => {
-                return self.skipWaiting();
-            })
+            .then(cache => cache.addAll(ASSETS))
+            .then(() => self.skipWaiting())
     );
 });
 
-// Activate event - clean old caches
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys()
-            .then((cacheNames) => {
-                return Promise.all(
-                    cacheNames
-                        .filter((name) => name !== CACHE_NAME)
-                        .map((name) => caches.delete(name))
-                );
-            })
-            .then(() => {
-                return self.clients.claim();
-            })
+// Activate
+self.addEventListener('activate', e => {
+    e.waitUntil(
+        caches.keys().then(keys => 
+            Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+        ).then(() => self.clients.claim())
     );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
-    if (event.request.method !== 'GET') {
-        return;
-    }
-
-    // Skip API requests (Open Food Facts)
-    if (event.request.url.includes('openfoodfacts.org')) {
-        return;
-    }
-
-    event.respondWith(
-        caches.match(event.request)
-            .then((cachedResponse) => {
-                if (cachedResponse) {
-                    return cachedResponse;
+// Fetch
+self.addEventListener('fetch', e => {
+    // Skip non-GET and API requests
+    if (e.request.method !== 'GET') return;
+    if (e.request.url.includes('openfoodfacts.org')) return;
+    
+    e.respondWith(
+        caches.match(e.request).then(cached => {
+            if (cached) return cached;
+            
+            return fetch(e.request).then(response => {
+                // Don't cache non-ok responses
+                if (!response || response.status !== 200) return response;
+                
+                // Clone and cache
+                const clone = response.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+                
+                return response;
+            }).catch(() => {
+                // Offline fallback for navigation
+                if (e.request.mode === 'navigate') {
+                    return caches.match('./index.html');
                 }
-
-                return fetch(event.request)
-                    .then((response) => {
-                        // Don't cache non-successful responses
-                        if (!response || response.status !== 200 || response.type !== 'basic') {
-                            return response;
-                        }
-
-                        // Clone the response
-                        const responseToCache = response.clone();
-
-                        caches.open(CACHE_NAME)
-                            .then((cache) => {
-                                cache.put(event.request, responseToCache);
-                            });
-
-                        return response;
-                    })
-                    .catch(() => {
-                        // Return offline page if available
-                        return caches.match('/index.html');
-                    });
-            })
+            });
+        })
     );
-});
-
-// Handle background sync for offline additions
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'sync-products') {
-        // Handle sync when back online
-        console.log('Background sync triggered');
-    }
 });
