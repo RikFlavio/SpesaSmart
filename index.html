@@ -3,19 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0a0a0f" id="metaTheme">
+    <meta name="theme-color" content="#22c55e" id="metaTheme">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SpesaSmart">
-    <meta name="description" content="SpesaSmart - Lista della spesa intelligente con scanner barcode">
-    <meta name="mobile-web-app-capable" content="yes">
     
     <title>SpesaSmart</title>
     
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="img/icon-192.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="img/icon-32.png">
-    <link rel="apple-touch-icon" href="img/icon-192.png">
+    <link rel="icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="img/icon-180.png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,62 +21,36 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="app" id="app">
+    <div class="app">
         <!-- Header -->
         <header class="header">
             <div class="header-title">
                 <span class="logo">🛒</span>
                 <h1>Spesa<span>Smart</span></h1>
             </div>
-            <div class="header-actions">
-                <button class="icon-btn" id="btnHistory" aria-label="Storico">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
-                    </svg>
-                </button>
-                <button class="icon-btn" id="btnSettings" aria-label="Impostazioni">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-                    </svg>
-                </button>
-            </div>
+            <button class="icon-btn" id="btnSettings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+                </svg>
+            </button>
         </header>
 
         <!-- Shop Filter -->
         <div class="shop-filter" id="shopFilter"></div>
 
-        <!-- Stats -->
-        <div class="stats">
-            <div class="stat-box">
-                <span class="stat-icon">📦</span>
-                <div class="stat-data">
-                    <span class="stat-value" id="statTotal">0</span>
-                    <span class="stat-label">Prodotti</span>
-                </div>
-            </div>
-            <div class="stat-box">
-                <span class="stat-icon">✓</span>
-                <div class="stat-data">
-                    <span class="stat-value" id="statChecked">0</span>
-                    <span class="stat-label">Presi</span>
-                </div>
-            </div>
-        </div>
-
         <!-- Main List -->
         <main class="main" id="mainList"></main>
 
-        <!-- Bottom Actions -->
+        <!-- Footer -->
         <footer class="footer">
-            <button class="btn-primary" id="btnScan">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <button class="btn-scan" id="btnScan">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
                     <line x1="7" y1="12" x2="17" y2="12"/>
                 </svg>
-                Scansiona
             </button>
-            <button class="btn-secondary" id="btnAdd" aria-label="Aggiungi">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <button class="btn-add" id="btnAdd">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
             </button>
@@ -92,60 +63,60 @@
     <!-- Scanner Modal -->
     <div class="modal" id="modalScanner">
         <div class="modal-header">
-            <h2>Scansiona Barcode</h2>
+            <h2>Scansiona</h2>
             <button class="modal-close" data-close="modalScanner">✕</button>
         </div>
         <div class="modal-body">
             <div class="scanner-box">
                 <div id="scannerView"></div>
-                <div class="scanner-target"></div>
             </div>
-            <p class="hint">Inquadra il codice a barre</p>
             <button class="btn-outline" id="btnManualCode">Inserisci codice manualmente</button>
+        </div>
+    </div>
+
+    <!-- Select Shop Modal (dopo scansione) -->
+    <div class="modal" id="modalSelectShop">
+        <div class="modal-header">
+            <h2>Dove lo trovi?</h2>
+            <button class="modal-close" data-close="modalSelectShop">✕</button>
+        </div>
+        <div class="modal-body">
+            <div class="product-found" id="productFound"></div>
+            <p class="label">Seleziona supermercato:</p>
+            <div class="shop-select-list" id="shopSelectList"></div>
+            <button class="btn-link" id="btnNewShopInSelect">+ Nuovo supermercato</button>
+            <div class="modal-actions">
+                <button class="btn-primary" id="btnConfirmAdd">Aggiungi alla Lista</button>
+            </div>
         </div>
     </div>
 
     <!-- Add Product Modal -->
     <div class="modal" id="modalAdd">
         <div class="modal-header">
-            <h2 id="modalAddTitle">Aggiungi Prodotto</h2>
+            <h2>Aggiungi Prodotto</h2>
             <button class="modal-close" data-close="modalAdd">✕</button>
         </div>
         <div class="modal-body">
-            <div class="product-preview" id="productPreview"></div>
             <form id="formProduct">
                 <div class="form-group">
                     <label>Nome *</label>
                     <input type="text" id="inputName" placeholder="es. Latte Intero" required>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Marca</label>
-                        <input type="text" id="inputBrand" placeholder="es. Granarolo">
-                    </div>
-                    <div class="form-group">
-                        <label>Barcode</label>
-                        <div class="input-icon">
-                            <input type="text" id="inputBarcode" placeholder="Codice">
-                            <button type="button" class="input-btn" id="btnScanBarcode">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+                <div class="form-group">
+                    <label>Marca</label>
+                    <input type="text" id="inputBrand" placeholder="es. Granarolo">
                 </div>
                 <div class="form-group">
                     <label>Categoria</label>
                     <div class="category-grid" id="categoryGrid"></div>
                 </div>
                 <div class="form-group">
-                    <label>Disponibile presso</label>
+                    <label>Supermercato</label>
                     <div class="shop-grid" id="shopGrid"></div>
-                    <button type="button" class="btn-link" id="btnAddShopInline">+ Aggiungi supermercato</button>
+                    <button type="button" class="btn-link" id="btnAddShopInForm">+ Nuovo supermercato</button>
                 </div>
-                <input type="hidden" id="inputImage">
-                <button type="submit" class="btn-primary btn-full">Aggiungi alla Lista</button>
+                <button type="submit" class="btn-primary">Aggiungi</button>
             </form>
         </div>
     </div>
@@ -153,7 +124,7 @@
     <!-- Product Detail Modal -->
     <div class="modal" id="modalDetail">
         <div class="modal-header">
-            <h2>Dettaglio Prodotto</h2>
+            <h2>Dettaglio</h2>
             <button class="modal-close" data-close="modalDetail">✕</button>
         </div>
         <div class="modal-body" id="detailContent"></div>
@@ -169,63 +140,31 @@
             <div class="settings-list">
                 <button class="settings-item" id="btnTheme">
                     <span class="settings-icon" id="themeIcon">🌙</span>
-                    <span class="settings-text">
-                        <strong id="themeName">Tema Scuro</strong>
-                        <small id="themeDesc">Passa al tema chiaro</small>
-                    </span>
+                    <span class="settings-text" id="themeName">Tema Scuro</span>
                     <span class="toggle" id="themeToggle"></span>
                 </button>
                 <button class="settings-item" id="btnShops">
                     <span class="settings-icon">🏪</span>
-                    <span class="settings-text">
-                        <strong>Supermercati</strong>
-                        <small>Gestisci i tuoi negozi</small>
-                    </span>
+                    <span class="settings-text">Supermercati</span>
                     <span class="arrow">›</span>
                 </button>
-                <button class="settings-item" id="btnCategories">
-                    <span class="settings-icon">🏷️</span>
-                    <span class="settings-text">
-                        <strong>Categorie</strong>
-                        <small>Personalizza le categorie</small>
-                    </span>
+                <button class="settings-item" id="btnHistory">
+                    <span class="settings-icon">📜</span>
+                    <span class="settings-text">Storico Prodotti</span>
                     <span class="arrow">›</span>
                 </button>
-                <button class="settings-item" id="btnExport">
-                    <span class="settings-icon">📤</span>
-                    <span class="settings-text">
-                        <strong>Esporta Dati</strong>
-                        <small>Backup in formato JSON</small>
-                    </span>
-                    <span class="arrow">›</span>
-                </button>
-                <label class="settings-item">
-                    <span class="settings-icon">📥</span>
-                    <span class="settings-text">
-                        <strong>Importa Dati</strong>
-                        <small>Ripristina da backup</small>
-                    </span>
-                    <input type="file" id="inputImport" accept=".json" hidden>
-                    <span class="arrow">›</span>
-                </label>
                 <button class="settings-item" id="btnClearDone">
                     <span class="settings-icon">✨</span>
-                    <span class="settings-text">
-                        <strong>Rimuovi Completati</strong>
-                        <small>Elimina prodotti spuntati</small>
-                    </span>
+                    <span class="settings-text">Rimuovi Completati</span>
                     <span class="arrow">›</span>
                 </button>
                 <button class="settings-item danger" id="btnClearAll">
                     <span class="settings-icon">🗑️</span>
-                    <span class="settings-text">
-                        <strong>Svuota Lista</strong>
-                        <small>Elimina tutti i prodotti</small>
-                    </span>
+                    <span class="settings-text">Svuota Lista</span>
                     <span class="arrow">›</span>
                 </button>
             </div>
-            <p class="privacy-note">🔒 Tutti i dati sono salvati solo sul tuo dispositivo</p>
+            <p class="privacy-note">🔒 Dati salvati solo sul dispositivo</p>
         </div>
     </div>
 
@@ -237,7 +176,7 @@
         </div>
         <div class="modal-body">
             <div class="list" id="shopsList"></div>
-            <button class="btn-outline btn-full" id="btnNewShop">+ Nuovo Supermercato</button>
+            <button class="btn-outline" id="btnNewShop">+ Nuovo Supermercato</button>
         </div>
     </div>
 
@@ -259,42 +198,7 @@
                 </div>
                 <input type="hidden" id="inputShopId">
                 <input type="hidden" id="inputShopEmoji" value="🛒">
-                <button type="submit" class="btn-primary btn-full">Salva</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Categories Modal -->
-    <div class="modal" id="modalCategories">
-        <div class="modal-header">
-            <h2>Categorie</h2>
-            <button class="modal-close" data-close="modalCategories">✕</button>
-        </div>
-        <div class="modal-body">
-            <div class="list" id="categoriesList"></div>
-            <button class="btn-outline btn-full" id="btnNewCategory">+ Nuova Categoria</button>
-        </div>
-    </div>
-
-    <!-- Edit Category Modal -->
-    <div class="modal" id="modalEditCategory">
-        <div class="modal-header">
-            <h2 id="editCategoryTitle">Nuova Categoria</h2>
-            <button class="modal-close" data-close="modalEditCategory">✕</button>
-        </div>
-        <div class="modal-body">
-            <form id="formCategory">
-                <div class="form-group">
-                    <label>Nome *</label>
-                    <input type="text" id="inputCategoryName" placeholder="es. Biologico" required>
-                </div>
-                <div class="form-group">
-                    <label>Icona</label>
-                    <div class="emoji-picker" id="categoryEmojiPicker"></div>
-                </div>
-                <input type="hidden" id="inputCategoryId">
-                <input type="hidden" id="inputCategoryEmoji" value="📦">
-                <button type="submit" class="btn-primary btn-full">Salva</button>
+                <button type="submit" class="btn-primary">Salva</button>
             </form>
         </div>
     </div>
@@ -302,11 +206,10 @@
     <!-- History Modal -->
     <div class="modal" id="modalHistory">
         <div class="modal-header">
-            <h2>Storico Prodotti</h2>
+            <h2>Storico</h2>
             <button class="modal-close" data-close="modalHistory">✕</button>
         </div>
         <div class="modal-body">
-            <p class="hint">Tocca un prodotto per aggiungerlo</p>
             <div class="list" id="historyList"></div>
         </div>
     </div>
@@ -322,7 +225,7 @@
             </div>
             <div class="dialog-actions">
                 <button class="btn-ghost" id="dialogCancel">Annulla</button>
-                <button class="btn-primary" id="dialogConfirm">Conferma</button>
+                <button class="btn-primary" id="dialogConfirm">OK</button>
             </div>
         </div>
     </div>
@@ -330,7 +233,6 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <!-- Scripts -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="app.js"></script>
 </body>
