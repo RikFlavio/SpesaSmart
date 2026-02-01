@@ -1,15 +1,12 @@
-const CACHE_NAME = 'spesasmart-v2';
+const CACHE_NAME = 'spesasmart-v3';
 const ASSETS = [
     './',
     './index.html',
     './styles.css',
     './app.js',
-    './manifest.json',
-    './img/icon-192.png',
-    './img/icon-512.png'
+    './manifest.json'
 ];
 
-// Install
 self.addEventListener('install', e => {
     e.waitUntil(
         caches.open(CACHE_NAME)
@@ -18,7 +15,6 @@ self.addEventListener('install', e => {
     );
 });
 
-// Activate
 self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys().then(keys => 
@@ -27,20 +23,24 @@ self.addEventListener('activate', e => {
     );
 });
 
-// Fetch
 self.addEventListener('fetch', e => {
-    // Skip non-GET and API requests
+    const url = e.request.url;
+    
+    // Skip non-GET, chrome-extension, and external requests
     if (e.request.method !== 'GET') return;
-    if (e.request.url.includes('openfoodfacts.org')) return;
-    if (e.request.url.includes('fonts.googleapis.com')) return;
-    if (e.request.url.includes('fonts.gstatic.com')) return;
+    if (url.startsWith('chrome-extension://')) return;
+    if (url.includes('openfoodfacts.org')) return;
+    if (url.includes('fonts.googleapis.com')) return;
+    if (url.includes('fonts.gstatic.com')) return;
     
     e.respondWith(
         caches.match(e.request).then(cached => {
             if (cached) return cached;
             
             return fetch(e.request).then(response => {
-                if (!response || response.status !== 200) return response;
+                if (!response || response.status !== 200 || response.type !== 'basic') {
+                    return response;
+                }
                 
                 const clone = response.clone();
                 caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
