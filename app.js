@@ -10,7 +10,7 @@ const dbPut=(s,i)=>new Promise(r=>{const tx=db.transaction(s,'readwrite');tx.obj
 const dbDel=(s,id)=>new Promise(r=>{const tx=db.transaction(s,'readwrite');tx.objectStore(s).delete(id);tx.oncomplete=r});
 const dbClear=s=>new Promise(r=>{const tx=db.transaction(s,'readwrite');tx.objectStore(s).clear();tx.oncomplete=r});
 
-const load=async()=>{products=await dbAll('products');const c=await dbAll('cats');cats=c.length?c:[...CATS];if(!c.length)for(const x of cats)await dbPut('cats',x);shops=await dbAll('shops')};
+const load=async()=>{products=await dbAll('products');shops=await dbAll('shops');cats=[...CATS]};
 
 // Theme
 const initTheme=()=>{theme=localStorage.getItem('t')||(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark');applyTheme()};
@@ -93,6 +93,7 @@ $('formAdd').onsubmit=async e=>{e.preventDefault();const name=$('inputName').val
 $('btnNewShopAdd').onclick=()=>openEditShop(null);
 $('btnTheme').onclick=toggleTheme;
 $('btnShops').onclick=()=>{close('modalSettings');renderShopsList();open('modalShops')};
+$('btnAddManual').onclick=()=>{close('modalSettings');$('formAdd').reset();renderCatGrid('catGridAdd','other');renderShopGrid('shopGridAdd',[]);open('modalAdd')};
 $('btnExport').onclick=exportData;
 $('inputImport').onchange=e=>{if(e.target.files[0]){importData(e.target.files[0]);e.target.value=''}};
 $('btnClearDone').onclick=async()=>{const done=products.filter(p=>p.done);if(!done.length){toast('Nessuno');return}if(await dialog(`Eliminare ${done.length} prodotti?`)){for(const p of done)await dbDel('products',p.id);products=products.filter(p=>!p.done);renderList();close('modalSettings');toast('Rimossi')}};
