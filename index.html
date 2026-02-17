@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#22c55e" id="metaTheme">
+    <meta name="theme-color" content="#22c55e">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>SpesaSmart</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="favicon.ico">
@@ -20,10 +19,16 @@
             <h1>🛒 Spesa<span>Smart</span></h1>
             <button class="icon-btn" id="btnSettings">⚙️</button>
         </header>
-        <div class="filters" id="filters"></div>
+        <div class="search-bar">
+            <input type="text" id="inpSearch" placeholder="🔍 Cerca prodotto...">
+            <select id="selCat">
+                <option value="">Tutte</option>
+            </select>
+        </div>
         <main class="main" id="main"></main>
         <footer class="footer">
-            <button class="btn-scan" id="btnScan">📷 Scansiona</button>
+            <button class="btn" id="btnScan">📷 Scansiona</button>
+            <button class="btn" id="btnAdd">➕ Manuale</button>
         </footer>
     </div>
 
@@ -34,35 +39,25 @@
         <div class="modal-head"><span>Scansiona</span><button class="close" data-close="modalScanner">✕</button></div>
         <div class="modal-body">
             <div class="scanner" id="scannerView"></div>
-            <button class="btn-link" id="btnManual">Inserisci codice</button>
+            <button class="btn-link" id="btnManualCode">Inserisci codice</button>
         </div>
     </div>
 
-    <!-- Conferma prodotto -->
-    <div class="modal" id="modalConfirm">
-        <div class="modal-head"><span>Aggiungi</span><button class="close" data-close="modalConfirm">✕</button></div>
+    <!-- Aggiungi/Modifica Prodotto -->
+    <div class="modal" id="modalProduct">
+        <div class="modal-head"><span id="modalProductTitle">Nuovo Prodotto</span><button class="close" data-close="modalProduct">✕</button></div>
         <div class="modal-body">
-            <div class="found" id="found"></div>
-            <div class="form-group"><label>Categoria</label><div class="cat-grid" id="catGrid"></div></div>
-            <div class="form-group"><label>Supermercati</label><div class="shop-grid" id="shopGrid"></div><button type="button" class="btn-link" id="btnNewShopConfirm">+ Nuovo</button></div>
-            <button class="btn-primary" id="btnConfirmAdd">Aggiungi</button>
-        </div>
-    </div>
-
-    <!-- Aggiungi manuale -->
-    <div class="modal" id="modalAdd">
-        <div class="modal-head"><span>Nuovo Prodotto</span><button class="close" data-close="modalAdd">✕</button></div>
-        <div class="modal-body">
-            <form id="formAdd">
-                <div class="form-group"><label>Nome *</label><input type="text" id="inputName" required></div>
-                <div class="form-group"><label>Categoria</label><div class="cat-grid" id="catGridAdd"></div></div>
-                <div class="form-group"><label>Supermercati</label><div class="shop-grid" id="shopGridAdd"></div><button type="button" class="btn-link" id="btnNewShopAdd">+ Nuovo</button></div>
-                <button type="submit" class="btn-primary">Aggiungi</button>
+            <form id="formProduct">
+                <div class="form-group"><label>Nome *</label><input type="text" id="inpName" required></div>
+                <div class="form-group"><label>Categoria</label><div class="cat-grid" id="catGrid"></div></div>
+                <div class="form-group"><label>Supermercati</label><div class="shop-grid" id="shopGrid"></div><button type="button" class="btn-link" id="btnNewShopForm">+ Nuovo</button></div>
+                <input type="hidden" id="inpBarcode"><input type="hidden" id="inpImage"><input type="hidden" id="inpId">
+                <button type="submit" class="btn-primary" id="btnSaveProduct">Salva</button>
             </form>
         </div>
     </div>
 
-    <!-- Dettaglio -->
+    <!-- Dettaglio Prodotto -->
     <div class="modal" id="modalDetail">
         <div class="modal-head"><span>Dettaglio</span><button class="close" data-close="modalDetail">✕</button></div>
         <div class="modal-body" id="detailBody"></div>
@@ -72,11 +67,10 @@
     <div class="modal" id="modalSettings">
         <div class="modal-head"><span>Impostazioni</span><button class="close" data-close="modalSettings">✕</button></div>
         <div class="modal-body">
-            <button class="setting" id="btnTheme"><span id="themeIcon">🌙</span><span id="themeName">Tema Scuro</span></button>
+            <button class="setting" id="btnTheme"><span id="themeIcon">🌙</span> <span id="themeName">Tema Scuro</span></button>
             <button class="setting" id="btnShops">🏪 Supermercati</button>
-            <button class="setting" id="btnAddManual">➕ Aggiungi Prodotto</button>
             <button class="setting" id="btnExport">📤 Esporta Dati</button>
-            <label class="setting"><input type="file" id="inputImport" accept=".json" hidden>📥 Importa Dati</label>
+            <label class="setting"><input type="file" id="inpImport" accept=".json" hidden>📥 Importa Dati</label>
             <button class="setting" id="btnClearDone">✨ Rimuovi Completati</button>
             <button class="setting danger" id="btnClearAll">🗑️ Svuota Lista</button>
         </div>
@@ -96,9 +90,22 @@
         <div class="modal-head"><span id="editShopTitle">Nuovo</span><button class="close" data-close="modalEditShop">✕</button></div>
         <div class="modal-body">
             <form id="formShop">
-                <div class="form-group"><label>Nome</label><input type="text" id="inputShopName" required></div>
+                <div class="form-group"><label>Nome</label><input type="text" id="inpShopName" required></div>
                 <div class="form-group"><label>Icona</label><div class="emoji-grid" id="emojiGrid"></div></div>
-                <input type="hidden" id="inputShopId"><input type="hidden" id="inputShopEmoji" value="🛒">
+                <input type="hidden" id="inpShopId"><input type="hidden" id="inpShopEmoji" value="🛒">
+                <button type="submit" class="btn-primary">Salva</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Category -->
+    <div class="modal" id="modalEditCat">
+        <div class="modal-head"><span id="editCatTitle">Nuova Categoria</span><button class="close" data-close="modalEditCat">✕</button></div>
+        <div class="modal-body">
+            <form id="formCat">
+                <div class="form-group"><label>Nome</label><input type="text" id="inpCatName" required></div>
+                <div class="form-group"><label>Icona</label><div class="emoji-grid" id="catEmojiGrid"></div></div>
+                <input type="hidden" id="inpCatId"><input type="hidden" id="inpCatEmoji" value="📦">
                 <button type="submit" class="btn-primary">Salva</button>
             </form>
         </div>
