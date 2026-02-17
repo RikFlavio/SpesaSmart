@@ -546,9 +546,55 @@ const importData=async f=>{
     }catch(e){toast('Errore importazione')}
 };
 
+// Pull to Refresh
+let pullStartY=0,pulling=false;
+const initPullToRefresh=()=>{
+    const main=$('main');
+    const indicator=$('pullIndicator');
+    
+    main.addEventListener('touchstart',e=>{
+        if(main.scrollTop===0){
+            pullStartY=e.touches[0].clientY;
+            pulling=true;
+        }
+    },{passive:true});
+    
+    main.addEventListener('touchmove',e=>{
+        if(!pulling)return;
+        const y=e.touches[0].clientY;
+        const diff=y-pullStartY;
+        if(diff>60&&main.scrollTop===0){
+            indicator.classList.add('visible');
+            indicator.textContent='↓ Rilascia per aggiornare';
+        }else{
+            indicator.classList.remove('visible');
+        }
+    },{passive:true});
+    
+    main.addEventListener('touchend',e=>{
+        if(indicator.classList.contains('visible')){
+            indicator.textContent='⟳ Aggiornamento...';
+            indicator.classList.add('loading');
+            // Forza aggiornamento Service Worker e ricarica
+            if('serviceWorker'in navigator){
+                navigator.serviceWorker.getRegistrations().then(regs=>{
+                    Promise.all(regs.map(r=>r.update())).then(()=>{
+                        setTimeout(()=>location.reload(),500);
+                    });
+                });
+            }else{
+                setTimeout(()=>location.reload(),500);
+            }
+        }
+        pulling=false;
+        indicator.classList.remove('visible');
+    },{passive:true});
+};
+
 // Init
 document.addEventListener('DOMContentLoaded',async()=>{
     initTheme();
+    initPullToRefresh();
     try{
         await initDB();
         await load();
