@@ -1,4 +1,4 @@
-const DB='SpesaSmartDB',VER=1;
+const DB='SpesaSmartDB',VER=2;
 const CATS=[
     {id:'dairy',name:'Latte',emoji:'🥛'},
     {id:'fruit',name:'Frutta',emoji:'🍎'},
