@@ -19,11 +19,25 @@
             <h1>🛒 Spesa<span>Smart</span></h1>
             <button class="icon-btn" id="btnSettings">⚙️</button>
         </header>
-        <div class="search-bar">
-            <input type="text" id="inpSearch" placeholder="🔍 Cerca prodotto...">
-            <select id="selCat">
-                <option value="">Tutte</option>
-            </select>
+        <div class="filters-bar">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="inpSearch" placeholder="Cerca prodotto...">
+            </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" id="btnFilterCat">
+                    <span class="filter-icon" id="filterCatIcon">📋</span>
+                    <span class="filter-label" id="filterCatLabel">Categorie</span>
+                    <span class="filter-arrow">▼</span>
+                </button>
+                <button class="filter-btn" id="btnFilterShop">
+                    <span class="filter-icon" id="filterShopIcon">🏪</span>
+                    <span class="filter-label" id="filterShopLabel">Supermercati</span>
+                    <span class="filter-arrow">▼</span>
+                </button>
+            </div>
+            <div class="dropdown" id="dropdownCat"></div>
+            <div class="dropdown" id="dropdownShop"></div>
         </div>
         <div class="pull-indicator" id="pullIndicator">↓ Rilascia per aggiornare</div>
         <main class="main" id="main"></main>
@@ -50,8 +64,8 @@
         <div class="modal-body">
             <form id="formProduct">
                 <div class="form-group"><label>Nome *</label><input type="text" id="inpName" required></div>
-                <div class="form-group"><label>Categoria</label><div class="cat-grid" id="catGrid"></div></div>
-                <div class="form-group"><label>Supermercati</label><div class="shop-grid" id="shopGrid"></div><button type="button" class="btn-link" id="btnNewShopForm">+ Nuovo</button></div>
+                <div class="form-group"><label>Categoria</label><div class="cat-grid" id="catGrid"></div><button type="button" class="btn-link" id="btnNewCatForm">+ Nuova categoria</button></div>
+                <div class="form-group"><label>Supermercati</label><div class="shop-grid" id="shopGrid"></div><button type="button" class="btn-link" id="btnNewShopForm">+ Nuovo supermercato</button></div>
                 <input type="hidden" id="inpBarcode"><input type="hidden" id="inpImage"><input type="hidden" id="inpId">
                 <button type="submit" class="btn-primary" id="btnSaveProduct">Salva</button>
             </form>
@@ -69,10 +83,8 @@
         <div class="modal-head"><span>Impostazioni</span><button class="close" data-close="modalSettings">✕</button></div>
         <div class="modal-body">
             <button class="setting" id="btnTheme"><span id="themeIcon">🌙</span> <span id="themeName">Tema Scuro</span></button>
-            <button class="setting" id="btnShops">🏪 Supermercati</button>
             <button class="setting" id="btnExport">📤 Esporta Dati</button>
             <label class="setting"><input type="file" id="inpImport" accept=".json" hidden>📥 Importa Dati</label>
-            <button class="setting" id="btnClearDone">✨ Rimuovi Completati</button>
             <button class="setting danger" id="btnClearAll">🗑️ Svuota Lista</button>
         </div>
     </div>

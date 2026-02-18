@@ -1,19 +1,34 @@
-const DB='SpesaSmartDB',VER=2;
+const DB='SpesaSmartDB',VER=3;
 const CATS=[
-    {id:'dairy',name:'Latte',emoji:'🥛'},
-    {id:'fruit',name:'Frutta',emoji:'🍎'},
-    {id:'meat',name:'Carne',emoji:'🥩'},
-    {id:'bakery',name:'Pane',emoji:'🥖'},
+    {id:'dairy',name:'Latticini',emoji:'🥛'},
+    {id:'fruit',name:'Frutta e Verdura',emoji:'🍎'},
+    {id:'meat',name:'Carne e Pesce',emoji:'🥩'},
+    {id:'bakery',name:'Pane e Dolci',emoji:'🥖'},
     {id:'drinks',name:'Bevande',emoji:'🥤'},
     {id:'frozen',name:'Surgelati',emoji:'🧊'},
     {id:'snacks',name:'Snack',emoji:'🍪'},
-    {id:'household',name:'Casa',emoji:'🧴'},
+    {id:'household',name:'Casa e Igiene',emoji:'🧴'},
+    {id:'pasta',name:'Pasta e Riso',emoji:'🍝'},
+    {id:'condiments',name:'Condimenti',emoji:'🫒'},
+    {id:'breakfast',name:'Colazione',emoji:'☕'},
+    {id:'baby',name:'Infanzia',emoji:'👶'},
+    {id:'pets',name:'Animali',emoji:'🐱'},
     {id:'other',name:'Altro',emoji:'📦'}
 ];
-const EMOJIS=['🛒','🏪','🏬','🛍️','💰','⭐','🔵','🟢','🔴','🟡','🟠','🟣','🌿','💎'];
-const CAT_EMOJIS=['🥛','🍎','🥩','🥖','🥤','🧊','🍪','🧴','📦','🍕','🍝','🥗','🧀','🥚','🍺','🍷','☕','🧹','💊','🐱','🐶','👶','🌶️','🍯','🥜','🍫','🎂','🍿','🥫','🧈'];
 
-let db,products=[],shops=[],cats=[...CATS],theme='dark',scanner=null;
+const SHOPS=[
+    {id:'esselunga',name:'Esselunga',emoji:'🔴'},
+    {id:'unes',name:'Unes',emoji:'🟠'},
+    {id:'pam',name:'Pam',emoji:'🟡'},
+    {id:'conad',name:'Conad',emoji:'🟢'},
+    {id:'lidl',name:'Lidl',emoji:'🔵'},
+    {id:'coop',name:'Coop',emoji:'🟣'}
+];
+
+const SHOP_EMOJIS=['🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','💜','💙','💚','💛','🧡','❤️','🩷'];
+const CAT_EMOJIS=['🥛','🍎','🥩','🥖','🥤','🧊','🍪','🧴','📦','🍕','🍝','🥗','🧀','🥚','🍺','🍷','☕','🧹','💊','🐱','🐶','👶','🌶️','🍯','🥜','🍫','🎂','🍿','🥫','🧈','🫒','🥣','🌿','🧅','🥕','🍗'];
+
+let db,products=[],shops=[],cats=[],theme='dark',scanner=null;
 
 // DB
 const initDB=()=>new Promise((res,rej)=>{
@@ -33,9 +48,28 @@ const dbDel=(s,id)=>new Promise(r=>{const tx=db.transaction(s,'readwrite');tx.ob
 const dbClear=s=>new Promise(r=>{const tx=db.transaction(s,'readwrite');tx.objectStore(s).clear();tx.oncomplete=r});
 const load=async()=>{
     products=await dbAll('products');
-    shops=await dbAll('shops');
-    const customCats=await dbAll('cats');
-    cats=[...CATS,...customCats];
+    
+    // Carica supermercati: se vuoto, salva i predefiniti
+    let dbShops=await dbAll('shops');
+    if(!dbShops.length){
+        for(const s of SHOPS)await dbPut('shops',s);
+        dbShops=SHOPS;
+    }
+    // Unisci predefiniti + custom (custom sovrascrive)
+    const shopMap=new Map(SHOPS.map(s=>[s.id,s]));
+    dbShops.forEach(s=>shopMap.set(s.id,s));
+    shops=Array.from(shopMap.values());
+    
+    // Carica categorie: se vuoto, salva i predefiniti
+    let dbCats=await dbAll('cats');
+    if(!dbCats.length){
+        for(const c of CATS)await dbPut('cats',c);
+        dbCats=CATS;
+    }
+    // Unisci predefiniti + custom
+    const catMap=new Map(CATS.map(c=>[c.id,c]));
+    dbCats.forEach(c=>catMap.set(c.id,c));
+    cats=Array.from(catMap.values());
 };
 
 // Theme
@@ -66,13 +100,13 @@ const dialog=(msg,input=false)=>new Promise(res=>{
 const renderList=()=>{
     const c=$('main');
     const search=$('inpSearch').value.toLowerCase().trim();
-    const catFilter=$('selCat').value;
     
     // Filtra e ordina A-Z
     let list=products
         .filter(p=>{
             if(search&&!p.name.toLowerCase().includes(search))return false;
-            if(catFilter&&p.cat!==catFilter)return false;
+            if(activeFilter.cat&&p.cat!==activeFilter.cat)return false;
+            if(activeFilter.shop&&(!p.shops||!p.shops.includes(activeFilter.shop)))return false;
             return true;
         })
         .sort((a,b)=>a.name.localeCompare(b.name,'it'));
@@ -107,10 +141,117 @@ const renderList=()=>{
     });
 };
 
-// Popola select categorie
-const renderCatSelect=()=>{
-    const sel=$('selCat');
-    sel.innerHTML='<option value="">Tutte</option>'+cats.map(c=>`<option value="${c.id}">${c.emoji} ${c.name}</option>`).join('');
+// Filtri dropdown
+let activeFilter={cat:null,shop:null};
+
+const renderFilterDropdowns=()=>{
+    // Aggiorna bottoni
+    const catBtn=$('btnFilterCat');
+    const shopBtn=$('btnFilterShop');
+    
+    if(activeFilter.cat){
+        const cat=cats.find(c=>c.id===activeFilter.cat);
+        $('filterCatIcon').textContent=cat?.emoji||'📋';
+        $('filterCatLabel').textContent=cat?.name||'Categorie';
+        catBtn.classList.add('active');
+    }else{
+        $('filterCatIcon').textContent='📋';
+        $('filterCatLabel').textContent='Categorie';
+        catBtn.classList.remove('active');
+    }
+    
+    if(activeFilter.shop){
+        const shop=shops.find(s=>s.id===activeFilter.shop);
+        $('filterShopIcon').textContent=shop?.emoji||'🏪';
+        $('filterShopLabel').textContent=shop?.name||'Supermercati';
+        shopBtn.classList.add('active');
+    }else{
+        $('filterShopIcon').textContent='🏪';
+        $('filterShopLabel').textContent='Supermercati';
+        shopBtn.classList.remove('active');
+    }
+};
+
+const openDropdown=(type)=>{
+    const dropCat=$('dropdownCat');
+    const dropShop=$('dropdownShop');
+    const btnCat=$('btnFilterCat');
+    const btnShop=$('btnFilterShop');
+    
+    // Chiudi tutti
+    dropCat.classList.remove('open');
+    dropShop.classList.remove('open');
+    btnCat.classList.remove('open');
+    btnShop.classList.remove('open');
+    
+    if(type==='cat'){
+        // Popola categorie ordinate A-Z
+        const sortedCats=[...cats].sort((a,b)=>a.name.localeCompare(b.name,'it'));
+        let html=`<div class="dropdown-item ${!activeFilter.cat?'selected':''}" data-id="">
+            <span class="item-icon">📋</span><span class="item-label">Tutte le categorie</span>
+            ${!activeFilter.cat?'<span class="item-check">✓</span>':''}
+        </div>`;
+        sortedCats.forEach(c=>{
+            const sel=activeFilter.cat===c.id;
+            html+=`<div class="dropdown-item ${sel?'selected':''}" data-id="${c.id}">
+                <span class="item-icon">${c.emoji}</span><span class="item-label">${c.name}</span>
+                ${sel?'<span class="item-check">✓</span>':''}
+            </div>`;
+        });
+        dropCat.innerHTML=html;
+        dropCat.classList.add('open');
+        btnCat.classList.add('open');
+        
+        dropCat.querySelectorAll('.dropdown-item').forEach(item=>{
+            item.onclick=()=>{
+                activeFilter.cat=item.dataset.id||null;
+                closeDropdowns();
+                renderFilterDropdowns();
+                renderList();
+                vib();
+            };
+        });
+    }else if(type==='shop'){
+        // Popola supermercati ordinati A-Z
+        const sortedShops=[...shops].sort((a,b)=>a.name.localeCompare(b.name,'it'));
+        let html=`<div class="dropdown-item ${!activeFilter.shop?'selected':''}" data-id="">
+            <span class="item-icon">🏪</span><span class="item-label">Tutti i supermercati</span>
+            ${!activeFilter.shop?'<span class="item-check">✓</span>':''}
+        </div>`;
+        if(sortedShops.length){
+            sortedShops.forEach(s=>{
+                const sel=activeFilter.shop===s.id;
+                html+=`<div class="dropdown-item ${sel?'selected':''}" data-id="${s.id}">
+                    <span class="item-icon">${s.emoji}</span><span class="item-label">${s.name}</span>
+                    ${sel?'<span class="item-check">✓</span>':''}
+                </div>`;
+            });
+        }else{
+            html+=`<div class="dropdown-item" style="color:var(--text3)">
+                <span class="item-icon">ℹ️</span><span class="item-label">Nessun supermercato</span>
+            </div>`;
+        }
+        dropShop.innerHTML=html;
+        dropShop.classList.add('open');
+        btnShop.classList.add('open');
+        
+        dropShop.querySelectorAll('.dropdown-item[data-id]').forEach(item=>{
+            item.onclick=()=>{
+                activeFilter.shop=item.dataset.id||null;
+                closeDropdowns();
+                renderFilterDropdowns();
+                renderList();
+                vib();
+            };
+        });
+    }
+};
+
+const closeDropdowns=()=>{
+    $('dropdownCat').classList.remove('open');
+    $('dropdownShop').classList.remove('open');
+    $('btnFilterCat').classList.remove('open');
+    $('btnFilterShop').classList.remove('open');
 };
 
 // Product Actions
@@ -236,26 +377,31 @@ const openDetail=async id=>{
     </div>
     
     <div class="detail-section">
-        <h4>💰 Prezzi per Supermercato</h4>
-        <table class="price-table">
-            <thead><tr><th>Supermercato</th><th>Prezzo</th><th></th></tr></thead>
-            <tbody id="priceTableBody">`;
+        <h4>💰 Prezzi</h4>
+        <div id="pricesList">`;
     
-    // Righe prezzi
+    // Prezzi esistenti ordinati dal più basso al più alto
     const prices=p.prices||{};
-    if(shops.length){
-        shops.forEach(s=>{
-            const price=prices[s.id];
-            h+=`<tr>
-                <td>${s.emoji} ${s.name}</td>
-                <td><input type="text" class="price-input" data-shop="${s.id}" value="${price?price.toFixed(2):''}" placeholder="—"></td>
-                <td><button class="price-save" onclick="savePrice('${p.id}','${s.id}')">💾</button></td>
-            </tr>`;
+    const priceEntries=Object.entries(prices)
+        .map(([sid,price])=>({shop:shops.find(s=>s.id===sid),price}))
+        .filter(e=>e.shop&&e.price>0)
+        .sort((a,b)=>a.price-b.price);
+    
+    if(priceEntries.length){
+        priceEntries.forEach((e,i)=>{
+            const isBest=i===0&&priceEntries.length>1;
+            h+=`<div class="price-row ${isBest?'best':''}">
+                <span class="price-shop">${e.shop.emoji} ${e.shop.name}</span>
+                <span class="price-value">€ ${e.price.toFixed(2)}</span>
+                <button class="price-del" onclick="delPrice('${p.id}','${e.shop.id}')">✕</button>
+            </div>`;
         });
+    }else{
+        h+=`<div class="no-data">Nessun prezzo inserito</div>`;
     }
     
-    h+=`</tbody></table>
-        <button class="btn-link" onclick="addShopFromDetail('${p.id}')">+ Aggiungi supermercato</button>
+    h+=`</div>
+        <button class="btn-link" onclick="addPricePrompt('${p.id}')">+ Aggiungi prezzo</button>
     </div>`;
     
     // Info nutrizionali
@@ -314,24 +460,52 @@ window.scanBarcode=id=>{
 };
 
 // Salva prezzo
-window.savePrice=async(id,shopId)=>{
+// Price management
+window.addPricePrompt=async id=>{
     const p=products.find(x=>x.id===id);
     if(!p)return;
-    const input=document.querySelector(`.price-input[data-shop="${shopId}"]`);
-    const val=input.value.trim().replace(',','.');
+    if(!shops.length){toast('Crea prima un supermercato');return}
     
-    if(!p.prices)p.prices={};
+    const prices=p.prices||{};
+    const availableShops=shops.filter(s=>!prices[s.id]).sort((a,b)=>a.name.localeCompare(b.name,'it'));
     
-    if(!val){
-        delete p.prices[shopId];
-    }else{
-        const num=parseFloat(val);
-        if(isNaN(num)||num<0){toast('Prezzo non valido');return}
-        p.prices[shopId]=num;
+    if(!availableShops.length){
+        toast('Prezzo già inserito per tutti');
+        return;
     }
     
-    await dbPut('products',p);
-    toast('Prezzo salvato');
+    let h='<div class="detail-section"><h4>Seleziona Supermercato</h4>';
+    availableShops.forEach(s=>{
+        h+=`<div class="select-row" data-id="${s.id}"><span>${s.emoji} ${s.name}</span></div>`;
+    });
+    h+='<button class="btn-link" onclick="addShopFromDetail(\''+id+'\')">+ Nuovo supermercato</button></div>';
+    $('detailBody').innerHTML=h;
+    
+    $('detailBody').querySelectorAll('.select-row').forEach(el=>{
+        el.onclick=async()=>{
+            const shopId=el.dataset.id;
+            const price=await dialog('Prezzo (€)',true);
+            if(price){
+                const val=parseFloat(price.replace(',','.'));
+                if(!isNaN(val)&&val>0){
+                    if(!p.prices)p.prices={};
+                    p.prices[shopId]=val;
+                    await dbPut('products',p);
+                    toast('Prezzo salvato');
+                }
+            }
+            openDetail(id);
+        };
+    });
+};
+
+window.delPrice=async(id,sid)=>{
+    const p=products.find(x=>x.id===id);
+    if(p?.prices){
+        delete p.prices[sid];
+        await dbPut('products',p);
+        openDetail(id);
+    }
 };
 
 // Categoria nel dettaglio
@@ -487,8 +661,8 @@ const openEditShop=id=>{
     $('editShopTitle').textContent=s?'Modifica':'Nuovo Supermercato';
     $('inpShopId').value=id||'';
     $('inpShopName').value=s?.name||'';
-    $('inpShopEmoji').value=s?.emoji||'🛒';
-    renderEmojiGrid('emojiGrid',s?.emoji||'🛒',EMOJIS,'inpShopEmoji');
+    $('inpShopEmoji').value=s?.emoji||'⚫';
+    renderEmojiGrid('emojiGrid',s?.emoji||'⚫',SHOP_EMOJIS,'inpShopEmoji');
     close('modalShops');close('modalProduct');close('modalDetail');
     open('modalEditShop');
 };
@@ -539,7 +713,7 @@ const importData=async f=>{
         if(d.shops){await dbClear('shops');for(const s of d.shops)await dbPut('shops',s)}
         if(d.cats){await dbClear('cats');for(const c of d.cats)await dbPut('cats',c)}
         await load();
-        renderCatSelect();
+        renderFilterDropdowns();
         renderList();
         closeAll();
         toast('Importato');
@@ -598,7 +772,7 @@ document.addEventListener('DOMContentLoaded',async()=>{
     try{
         await initDB();
         await load();
-        renderCatSelect();
+        renderFilterDropdowns();
         renderList();
         if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
     }catch(e){console.error(e)}
@@ -608,8 +782,19 @@ document.addEventListener('DOMContentLoaded',async()=>{
 $('overlay').onclick=closeAll;
 document.querySelectorAll('.close').forEach(b=>{b.onclick=()=>close(b.dataset.close)});
 
-$('inpSearch').oninput=renderList;
-$('selCat').onchange=renderList;
+$('inpSearch').oninput=()=>{closeDropdowns();renderList()};
+$('btnFilterCat').onclick=()=>{
+    if($('dropdownCat').classList.contains('open'))closeDropdowns();
+    else openDropdown('cat');
+};
+$('btnFilterShop').onclick=()=>{
+    if($('dropdownShop').classList.contains('open'))closeDropdowns();
+    else openDropdown('shop');
+};
+// Chiudi dropdown cliccando fuori
+document.addEventListener('click',e=>{
+    if(!e.target.closest('.filters-bar'))closeDropdowns();
+});
 
 $('btnScan').onclick=()=>{open('modalScanner');startScan()};
 $('btnAdd').onclick=()=>openProductForm();
@@ -633,21 +818,12 @@ $('btnManualCode').onclick=async()=>{
 };
 
 $('formProduct').onsubmit=e=>{e.preventDefault();saveProduct()};
-$('btnNewShopForm').onclick=()=>openEditShop(null);
+$('btnNewShopForm').onclick=()=>{window.pendingFromForm=true;openEditShop(null)};
+$('btnNewCatForm').onclick=()=>{window.pendingFromForm=true;openEditCat(null)};
 
 $('btnTheme').onclick=toggleTheme;
-$('btnShops').onclick=()=>{close('modalSettings');renderShopsList();open('modalShops')};
 $('btnExport').onclick=exportData;
 $('inpImport').onchange=e=>{if(e.target.files[0]){importData(e.target.files[0]);e.target.value=''}};
-$('btnClearDone').onclick=async()=>{
-    const done=products.filter(p=>p.done);
-    if(!done.length){toast('Nessun completato');return}
-    if(await dialog(`Eliminare ${done.length} prodotti completati?`)){
-        for(const p of done)await dbDel('products',p.id);
-        products=products.filter(p=>!p.done);
-        renderList();close('modalSettings');toast('Rimossi');
-    }
-};
 $('btnClearAll').onclick=async()=>{
     if(!products.length){toast('Lista già vuota');return}
     if(await dialog('Eliminare TUTTI i prodotti?')){
@@ -661,21 +837,25 @@ $('formShop').onsubmit=async e=>{
     e.preventDefault();
     const name=$('inpShopName').value.trim();
     if(!name)return;
-    const id=$('inpShopId').value||name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
-    const shop={id,name,emoji:$('inpShopEmoji').value||'🛒'};
+    const id=$('inpShopId').value||'custom_'+name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    const shop={id,name,emoji:$('inpShopEmoji').value||'⚫'};
     await dbPut('shops',shop);
     const idx=shops.findIndex(s=>s.id===id);
     if(idx>=0)shops[idx]=shop;else shops.push(shop);
     close('modalEditShop');
+    renderFilterDropdowns();
     
+    // Se veniva dal form prodotto, torna al form
+    if(window.pendingFromForm){
+        window.pendingFromForm=false;
+        renderShopGrid([id]);
+        open('modalProduct');
+    }
     // Se veniva dal dettaglio prodotto, riapri dettaglio
-    if(window.pendingDetailProdId){
+    else if(window.pendingDetailProdId){
         const prodId=window.pendingDetailProdId;
         window.pendingDetailProdId=null;
         openDetail(prodId);
-    }else{
-        renderShopsList();
-        open('modalShops');
     }
     toast('Salvato');
 };
@@ -690,10 +870,16 @@ $('formCat').onsubmit=async e=>{
     const idx=cats.findIndex(c=>c.id===id);
     if(idx>=0)cats[idx]=cat;else cats.push(cat);
     close('modalEditCat');
-    renderCatSelect();
+    renderFilterDropdowns();
     
+    // Se veniva dal form prodotto, torna al form
+    if(window.pendingFromForm){
+        window.pendingFromForm=false;
+        renderCatGrid(id);
+        open('modalProduct');
+    }
     // Se veniva dal dettaglio prodotto, riapri e seleziona nuova categoria
-    if(window.pendingDetailProdId){
+    else if(window.pendingDetailProdId){
         const prodId=window.pendingDetailProdId;
         window.pendingDetailProdId=null;
         const p=products.find(x=>x.id===prodId);
