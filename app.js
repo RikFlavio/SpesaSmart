@@ -101,7 +101,7 @@ const renderList=()=>{
     const c=$('main');
     const search=$('inpSearch').value.toLowerCase().trim();
     
-    // Filtra e ordina A-Z
+    // Filtra e ordina: A-Z, poi completati in fondo
     let list=products
         .filter(p=>{
             if(search&&!p.name.toLowerCase().includes(search))return false;
@@ -109,7 +109,12 @@ const renderList=()=>{
             if(activeFilter.shop&&(!p.shops||!p.shops.includes(activeFilter.shop)))return false;
             return true;
         })
-        .sort((a,b)=>a.name.localeCompare(b.name,'it'));
+        .sort((a,b)=>{
+            // Prima i non completati, poi i completati
+            if(a.done!==b.done)return a.done?1:-1;
+            // Poi ordine alfabetico
+            return a.name.localeCompare(b.name,'it');
+        });
     
     if(!products.length){
         c.innerHTML='<div class="empty"><span>🛒</span>Lista vuota<br>Scansiona o aggiungi un prodotto</div>';
@@ -123,22 +128,40 @@ const renderList=()=>{
     
     c.innerHTML=list.map(p=>`
         <div class="item ${p.done?'done':''}" data-id="${p.id}">
-            <div class="item-check">${p.done?'✓':'○'}</div>
+            <div class="item-check"><span class="check-icon">${p.done?'✓':'○'}</span></div>
             <div class="item-name">${p.name}</div>
-            <div class="item-qty">
-                <button class="qty-btn qm">−</button>
-                <span class="qty-val">${p.qty}</span>
-                <button class="qty-btn qp">+</button>
-            </div>
         </div>
     `).join('');
     c.querySelectorAll('.item').forEach(el=>{
         const id=el.dataset.id;
-        el.querySelector('.item-check').onclick=()=>{toggleDone(id);vib()};
+        el.querySelector('.item-check').onclick=()=>toggleDoneAnimated(id,el);
         el.querySelector('.item-name').onclick=()=>openDetail(id);
-        el.querySelector('.qm').onclick=()=>{updateQty(id,-1);vib()};
-        el.querySelector('.qp').onclick=()=>{updateQty(id,1);vib()};
     });
+};
+
+// Toggle con animazione
+const toggleDoneAnimated=async(id,el)=>{
+    vib();
+    const p=products.find(x=>x.id===id);
+    if(!p)return;
+    
+    p.done=!p.done;
+    
+    // Animazione
+    if(p.done){
+        el.classList.add('completing');
+        el.querySelector('.check-icon').textContent='✓';
+    }else{
+        el.classList.remove('done','completing');
+        el.querySelector('.check-icon').textContent='○';
+    }
+    
+    await dbPut('products',p);
+    
+    // Dopo l'animazione, riordina la lista
+    setTimeout(()=>{
+        renderList();
+    },p.done?400:100);
 };
 
 // Filtri dropdown
@@ -404,11 +427,6 @@ const openDetail=async id=>{
         <button class="btn-link" onclick="addPricePrompt('${p.id}')">+ Aggiungi prezzo</button>
     </div>`;
     
-    // Info nutrizionali
-    if(p.barcode){
-        h+=`<div class="detail-section" id="nutriSection"><h4>📊 Info Nutrizionali</h4><div class="no-data">Caricamento...</div></div>`;
-    }
-    
     h+=`<button class="btn-outline" onclick="delProduct('${p.id}')" style="color:var(--danger);margin-top:16px">🗑️ Elimina Prodotto</button>`;
     
     $('detailBody').innerHTML=h;
@@ -417,12 +435,6 @@ const openDetail=async id=>{
     renderDetailCatGrid(p.id,p.cat);
     
     open('modalDetail');
-    
-    // Carica info nutrizionali
-    if(p.barcode){
-        const api=await fetchAPI(p.barcode);
-        renderNutri(api);
-    }
 };
 
 // Salva nome
@@ -458,6 +470,8 @@ window.scanBarcode=id=>{
     open('modalScanner');
     startScan();
 };
+
+// Gestione scansione per prodotto esistente
 
 // Salva prezzo
 // Price management
@@ -540,36 +554,6 @@ window.addShopFromDetail=prodId=>{
     openEditShop(null);
 };
 
-const fetchAPI=async bc=>{
-    try{
-        const r=await fetch(`https://world.openfoodfacts.org/api/v2/product/${bc}.json`);
-        const d=await r.json();
-        return d.status===1?d.product:null;
-    }catch(e){return null}
-};
-
-const renderNutri=api=>{
-    const c=$('nutriSection');
-    if(!c)return;
-    if(!api){c.innerHTML='<h4>📊 Info Nutrizionali</h4><div class="no-data">Non disponibili</div>';return}
-    
-    let h='<h4>📊 Info Nutrizionali</h4>';
-    const ns=api.nutriscore_grade||api.nutrition_grades;
-    if(ns)h+=`<div class="nutri-row"><div class="nutri-badge ${ns}">${ns.toUpperCase()}</div><span>Nutri-Score</span></div>`;
-    
-    const n=api.nutriments||{};
-    const vals=[
-        {l:'Energia',v:n['energy-kcal_100g'],u:'kcal'},
-        {l:'Grassi',v:n.fat_100g,u:'g'},
-        {l:'Carboidrati',v:n.carbohydrates_100g,u:'g'},
-        {l:'Proteine',v:n.proteins_100g,u:'g'}
-    ].filter(x=>x.v!=null);
-    
-    if(vals.length)h+=`<div class="info-grid" style="margin-top:8px">${vals.map(x=>`<div class="info-item"><small>${x.l}</small><strong>${Number(x.v).toFixed(0)} ${x.u}</strong></div>`).join('')}</div>`;
-    
-    c.innerHTML=h;
-};
-
 window.delProduct=async id=>{
     if(await dialog('Eliminare questo prodotto?')){
         close('modalDetail');
@@ -599,11 +583,6 @@ const onScan=async code=>{
         const p=products.find(x=>x.id===id);
         if(p){
             p.barcode=code;
-            toast('Cerco info...');
-            const api=await fetchAPI(code);
-            if(api){
-                p.image=api.image_front_small_url||null;
-            }
             await dbPut('products',p);
             renderList();
             toast('Barcode aggiunto');
@@ -612,31 +591,11 @@ const onScan=async code=>{
         return;
     }
     
-    // Scansione normale per nuovo prodotto
-    toast('Cerco...');
-    const api=await fetchAPI(code);
-    if(api){
-        const name=api.product_name||api.product_name_it||'Sconosciuto';
-        const cat=guessCat(api);
-        openProductForm({name,barcode:code,image:api.image_front_small_url||null,cat});
-        toast('Prodotto trovato!');
-    }else{
-        openProductForm({barcode:code});
-        toast('Non trovato, inserisci nome');
-    }
+    // Nuovo prodotto - apri form con barcode
+    openProductForm({barcode:code});
+    toast('Barcode: '+code);
 };
 
-const guessCat=p=>{
-    const c=(p.categories||'').toLowerCase();
-    if(/lait|milk|latte|cheese|yogurt/.test(c))return'dairy';
-    if(/fruit|vegetable|frutta|verdur/.test(c))return'fruit';
-    if(/meat|carne|fish|pesce/.test(c))return'meat';
-    if(/bread|pane|bakery/.test(c))return'bakery';
-    if(/beverage|drink|bevand/.test(c))return'drinks';
-    if(/frozen|surgel/.test(c))return'frozen';
-    if(/snack|sweet|chocolate/.test(c))return'snacks';
-    return'other';
-};
 
 // Shops
 const renderShopsList=()=>{
@@ -804,16 +763,8 @@ $('btnManualCode').onclick=async()=>{
     await stopScan();close('modalScanner');
     const code=await dialog('Inserisci codice barcode',true);
     if(code?.trim()){
-        toast('Cerco...');
-        const api=await fetchAPI(code.trim());
-        if(api){
-            const name=api.product_name||api.product_name_it||'Sconosciuto';
-            openProductForm({name,barcode:code.trim(),image:api.image_front_small_url||null,cat:guessCat(api)});
-            toast('Trovato!');
-        }else{
-            openProductForm({barcode:code.trim()});
-            toast('Non trovato');
-        }
+        openProductForm({barcode:code.trim()});
+        toast('Barcode: '+code.trim());
     }
 };
 
