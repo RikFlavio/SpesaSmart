@@ -28,7 +28,7 @@ const SHOPS=[
 const SHOP_EMOJIS=['🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','💜','💙','💚','💛','🧡','❤️','🩷'];
 const CAT_EMOJIS=['🥛','🍎','🥩','🥖','🥤','🧊','🍪','🧴','📦','🍕','🍝','🥗','🧀','🥚','🍺','🍷','☕','🧹','💊','🐱','🐶','👶','🌶️','🍯','🥜','🍫','🎂','🍿','🥫','🧈','🫒','🥣','🌿','🧅','🥕','🍗'];
 
-let db,products=[],shops=[],cats=[],theme='dark',scanner=null;
+let db,products=[],shops=[],cats=[],theme='dark';
 
 // DB
 const initDB=()=>new Promise((res,rej)=>{
@@ -82,8 +82,8 @@ const $=id=>document.getElementById(id);
 const show=id=>$(id)?.classList.add('active');
 const hide=id=>$(id)?.classList.remove('active');
 const open=id=>{show('overlay');show(id)};
-const close=id=>{hide('overlay');hide(id);if(id==='modalScanner')stopScan()};
-const closeAll=()=>{hide('overlay');document.querySelectorAll('.modal.active').forEach(m=>m.classList.remove('active'));stopScan()};
+const close=id=>{hide('overlay');hide(id)};
+const closeAll=()=>{hide('overlay');document.querySelectorAll('.modal.active').forEach(m=>m.classList.remove('active'))};
 const toast=m=>{const t=$('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)};
 const vib=()=>navigator.vibrate?.(10);
 
@@ -319,8 +319,8 @@ const openProductForm=(data={})=>{
     $('modalProductTitle').textContent=data.id?'Modifica Prodotto':'Nuovo Prodotto';
     $('inpId').value=data.id||'';
     $('inpName').value=data.name||'';
-    $('inpBarcode').value=data.barcode||'';
-    $('inpImage').value=data.image||'';
+    $('inpQty').value=data.quantity||'';
+    $('inpUnit').value=data.unit||'';
     renderCatGrid(data.cat||'other');
     renderShopGrid(data.shops||[]);
     $('btnSaveProduct').textContent=data.id?'Salva':'Aggiungi';
@@ -333,15 +333,17 @@ const saveProduct=async()=>{
     const name=$('inpName').value.trim();
     if(!name)return;
     
+    const quantity=parseFloat($('inpQty').value)||null;
+    const unit=$('inpUnit').value||null;
+    
     const data={
         id:id||Date.now().toString(),
         name,
         cat:getSelCat(),
         shops:getSelShops(),
-        barcode:$('inpBarcode').value||null,
-        image:$('inpImage').value||null,
+        quantity,
+        unit,
         prices:{},
-        qty:1,
         done:false
     };
     
@@ -352,16 +354,17 @@ const saveProduct=async()=>{
             p.name=data.name;
             p.cat=data.cat;
             p.shops=data.shops;
+            p.quantity=data.quantity;
+            p.unit=data.unit;
             await dbPut('products',p);
         }
     }else{
         // Check duplicate
         const ex=products.find(p=>p.name.toLowerCase()===name.toLowerCase()||(data.barcode&&p.barcode===data.barcode));
         if(ex){
-            ex.qty++;
-            if(data.shops.length)ex.shops=[...new Set([...ex.shops,...data.shops])];
+            if(data.shops.length)ex.shops=[...new Set([...(ex.shops||[]),...data.shops])];
             await dbPut('products',ex);
-            toast(ex.name+' +1');
+            toast(ex.name+' già presente');
         }else{
             products.push(data);
             await dbPut('products',data);
@@ -387,9 +390,16 @@ const openDetail=async id=>{
             <button onclick="saveName('${p.id}')">💾</button>
         </div>
         <div class="detail-edit-row" style="margin-top:8px">
-            <input type="text" id="editBarcode" value="${p.barcode||''}" class="edit-input" placeholder="Barcode (opzionale)">
-            <button onclick="saveBarcode('${p.id}')">💾</button>
-            <button onclick="scanBarcode('${p.id}')" title="Scansiona">📷</button>
+            <input type="number" id="editQty" value="${p.quantity||''}" class="edit-input" placeholder="Peso" style="width:80px">
+            <select id="editUnit" class="edit-select">
+                <option value="">--</option>
+                <option value="g" ${p.unit==='g'?'selected':''}>g</option>
+                <option value="kg" ${p.unit==='kg'?'selected':''}>kg</option>
+                <option value="ml" ${p.unit==='ml'?'selected':''}>ml</option>
+                <option value="l" ${p.unit==='l'?'selected':''}>l</option>
+                <option value="pz" ${p.unit==='pz'?'selected':''}>pz</option>
+            </select>
+            <button onclick="saveQuantity('${p.id}')">💾</button>
         </div>
     </div>
     
@@ -400,21 +410,56 @@ const openDetail=async id=>{
     </div>
     
     <div class="detail-section">
-        <h4>💰 Prezzi</h4>
-        <div id="pricesList">`;
+        <h4>💰 Prezzi</h4>`;
     
-    // Prezzi esistenti ordinati dal più basso al più alto
+    // Mostra grammatura se presente
+    if(p.quantity&&p.unit){
+        h+=`<div class="quantity-info">${p.quantity} ${p.unit}</div>`;
+    }
+    
+    h+=`<div id="pricesList">`;
+    
+    // Calcola prezzo unitario (al kg o lt)
+    const calcUnitPrice=(price,qty,unit)=>{
+        if(!qty||!unit)return null;
+        let multiplier=1;
+        if(unit==='g')multiplier=1000/qty;
+        else if(unit==='kg')multiplier=1/qty;
+        else if(unit==='ml')multiplier=1000/qty;
+        else if(unit==='l')multiplier=1/qty;
+        else return null;
+        return price*multiplier;
+    };
+    
+    const getUnitLabel=(unit)=>{
+        if(unit==='g'||unit==='kg')return '/kg';
+        if(unit==='ml'||unit==='l')return '/lt';
+        return '';
+    };
+    
+    // Prezzi esistenti ordinati dal prezzo unitario più basso al più alto
     const prices=p.prices||{};
     const priceEntries=Object.entries(prices)
-        .map(([sid,price])=>({shop:shops.find(s=>s.id===sid),price}))
+        .map(([sid,price])=>{
+            const unitPrice=calcUnitPrice(price,p.quantity,p.unit);
+            return {shop:shops.find(s=>s.id===sid),price,unitPrice};
+        })
         .filter(e=>e.shop&&e.price>0)
-        .sort((a,b)=>a.price-b.price);
+        .sort((a,b)=>{
+            // Ordina per prezzo unitario se disponibile, altrimenti per prezzo
+            if(a.unitPrice&&b.unitPrice)return a.unitPrice-b.unitPrice;
+            return a.price-b.price;
+        });
     
     if(priceEntries.length){
+        const unitLabel=getUnitLabel(p.unit);
         priceEntries.forEach((e,i)=>{
             const isBest=i===0&&priceEntries.length>1;
             h+=`<div class="price-row ${isBest?'best':''}">
-                <span class="price-shop">${e.shop.emoji} ${e.shop.name}</span>
+                <div class="price-info">
+                    <span class="price-shop">${e.shop.emoji} ${e.shop.name}</span>
+                    ${e.unitPrice?`<span class="price-unit">€ ${e.unitPrice.toFixed(2)}${unitLabel}</span>`:''}
+                </div>
                 <span class="price-value">€ ${e.price.toFixed(2)}</span>
                 <button class="price-del" onclick="delPrice('${p.id}','${e.shop.id}')">✕</button>
             </div>`;
@@ -450,30 +495,19 @@ window.saveName=async id=>{
 };
 
 // Salva barcode
-window.saveBarcode=async id=>{
+window.saveQuantity=async id=>{
     const p=products.find(x=>x.id===id);
     if(!p)return;
-    const barcode=$('editBarcode').value.trim();
-    p.barcode=barcode||null;
-    p.image=null; // Reset immagine, verrà ricaricata
+    const qty=parseFloat($('editQty').value)||null;
+    const unit=$('editUnit').value||null;
+    p.quantity=qty;
+    p.unit=unit;
     await dbPut('products',p);
     renderList();
-    toast('Barcode salvato');
-    // Ricarica dettaglio per mostrare info nutrizionali
+    toast('Salvato');
     openDetail(id);
 };
 
-// Scansiona barcode per prodotto esistente
-window.scanBarcode=id=>{
-    window.scanForProductId=id;
-    close('modalDetail');
-    open('modalScanner');
-    startScan();
-};
-
-// Gestione scansione per prodotto esistente
-
-// Salva prezzo
 // Price management
 window.addPricePrompt=async id=>{
     const p=products.find(x=>x.id===id);
@@ -564,39 +598,6 @@ window.delProduct=async id=>{
     }
 };
 
-// Scanner
-const startScan=async()=>{
-    if(scanner)try{await scanner.stop()}catch(e){}
-    scanner=new Html5Qrcode('scannerView');
-    try{await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:100}},onScan,()=>{})}
-    catch(e){toast('Errore camera')}
-};
-const stopScan=async()=>{if(scanner){try{await scanner.stop()}catch(e){}scanner=null}};
-
-const onScan=async code=>{
-    vib();await stopScan();close('modalScanner');
-    
-    // Se stavamo scansionando per un prodotto esistente
-    if(window.scanForProductId){
-        const id=window.scanForProductId;
-        window.scanForProductId=null;
-        const p=products.find(x=>x.id===id);
-        if(p){
-            p.barcode=code;
-            await dbPut('products',p);
-            renderList();
-            toast('Barcode aggiunto');
-            openDetail(id);
-        }
-        return;
-    }
-    
-    // Nuovo prodotto - apri form con barcode
-    openProductForm({barcode:code});
-    toast('Barcode: '+code);
-};
-
-
 // Shops
 const renderShopsList=()=>{
     const c=$('shopsList');
@@ -649,9 +650,9 @@ const renderEmojiGrid=(containerId,sel,emojis,inputId)=>{
 const exportData=()=>{
     const customCats=cats.filter(c=>c.id.startsWith('custom_'));
     const d={
-        version:1,
+        version:2,
         date:new Date().toISOString(),
-        products:products.map(p=>({id:p.id,name:p.name,cat:p.cat,barcode:p.barcode,image:p.image,shops:p.shops||[],prices:p.prices||{},qty:p.qty,done:p.done})),
+        products:products.map(p=>({id:p.id,name:p.name,cat:p.cat,barcode:p.barcode,quantity:p.quantity,unit:p.unit,shops:p.shops||[],prices:p.prices||{},done:p.done})),
         shops:shops.map(s=>({id:s.id,name:s.name,emoji:s.emoji})),
         cats:customCats.map(c=>({id:c.id,name:c.name,emoji:c.emoji}))
     };
@@ -755,18 +756,8 @@ document.addEventListener('click',e=>{
     if(!e.target.closest('.filters-bar'))closeDropdowns();
 });
 
-$('btnScan').onclick=()=>{open('modalScanner');startScan()};
 $('btnAdd').onclick=()=>openProductForm();
 $('btnSettings').onclick=()=>open('modalSettings');
-
-$('btnManualCode').onclick=async()=>{
-    await stopScan();close('modalScanner');
-    const code=await dialog('Inserisci codice barcode',true);
-    if(code?.trim()){
-        openProductForm({barcode:code.trim()});
-        toast('Barcode: '+code.trim());
-    }
-};
 
 $('formProduct').onsubmit=e=>{e.preventDefault();saveProduct()};
 $('btnNewShopForm').onclick=()=>{window.pendingFromForm=true;openEditShop(null)};
